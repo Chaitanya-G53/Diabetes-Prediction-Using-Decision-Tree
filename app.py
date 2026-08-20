@@ -17,17 +17,20 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
+    /* Lock viewport height and eliminate scrollbars */
     html, body, [data-testid="stAppViewContainer"], .main {
         background: radial-gradient(circle at 50% 10%, #081a26 0%, #030a10 100%) !important;
         color: #e2f1ff !important;
         font-family: 'Plus Jakarta Sans', sans-serif !important;
+        overflow: hidden !important;
+        height: 100vh !important;
     }
 
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
+        padding-top: 0.6rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
         max-width: 100% !important;
     }
 
@@ -38,51 +41,59 @@ st.markdown("""
     }
     
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 1.2rem !important;
-        padding-left: 1.2rem !important;
-        padding-right: 1.2rem !important;
+        padding-top: 0.8rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
 
     /* Container Glass Cards */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: rgba(6, 20, 32, 0.85) !important;
         border: 1px solid rgba(0, 240, 255, 0.2) !important;
-        border-radius: 12px !important;
-        padding: 14px 16px !important;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
+        border-radius: 10px !important;
+        padding: 10px 14px !important;
+        box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.5) !important;
     }
 
     /* Metric Cards */
     div[data-testid="stMetric"] {
         background: rgba(0, 240, 255, 0.05) !important;
         border: 1px solid rgba(0, 240, 255, 0.15) !important;
-        border-radius: 8px !important;
-        padding: 6px 10px !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
     }
     div[data-testid="stMetricLabel"] {
-        font-size: 0.75rem !important;
+        font-size: 0.7rem !important;
         color: #7aa5c2 !important;
     }
     div[data-testid="stMetricValue"] {
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 1.1rem !important;
+        font-size: 0.95rem !important;
         color: #00f0ff !important;
     }
 
     /* Header text */
     .hud-title {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.95rem;
+        font-size: 0.88rem;
         font-weight: 700;
         color: #00f0ff;
         letter-spacing: 1px;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
 
+    /* Compact inputs */
+    .stSlider, .stNumberInput, .stSelectbox, .stRadio {
+        margin-bottom: -6px !important;
+    }
     label {
-        font-size: 0.8rem !important;
+        font-size: 0.75rem !important;
         font-weight: 600 !important;
         color: #7aa5c2 !important;
+    }
+    div[data-testid="stAlert"] {
+        padding: 6px 10px !important;
+        margin-bottom: 2px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -107,25 +118,25 @@ if "analyzed" not in st.session_state:
 
 # --- SIDEBAR: Controls ---
 with st.sidebar:
-    st.markdown("<div style='text-align: center; margin-bottom: 8px;'><span style='font-size: 2rem;'>🧪</span><br><b style='font-family: JetBrains Mono; color: #00f0ff; font-size: 1.1rem;'>PATIENT VITALS</b><br><span style='font-size: 0.75rem; color: #648ba6;'>Telemetry & Clinical Inputs</span></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; margin-bottom: 4px;'><span style='font-size: 1.6rem;'>🧪</span><br><b style='font-family: JetBrains Mono; color: #00f0ff; font-size: 0.95rem;'>PATIENT VITALS</b></div>", unsafe_allow_html=True)
 
     age = st.slider("👤 Age (Years)", min_value=1, max_value=100, value=45)
     gender = st.selectbox("⚧ Biological Gender", options=["Female", "Male", "Other"], index=0)
     smoking_history = st.selectbox("🚬 Smoking History", options=["never", "former", "current", "not current", "ever", "No Info"], index=0)
     
-    st.markdown("---")
+    st.markdown("<div style='margin-top: 4px;'></div>", unsafe_allow_html=True)
     bmi = st.number_input("⚖️ Body Mass Index (BMI)", min_value=10.0, max_value=70.0, value=27.32, step=0.1)
     hba1c = st.slider("🩸 HbA1c Level (%)", min_value=3.5, max_value=12.0, value=5.5, step=0.1)
     glucose = st.number_input("🔬 Blood Glucose (mg/dL)", min_value=50, max_value=350, value=130, step=1)
     
-    st.markdown("<div style='font-size: 0.8rem; font-weight:600; color: #7aa5c2; margin-top: 6px;'>Preconditions</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size: 0.75rem; font-weight:600; color: #7aa5c2; margin-top: 4px;'>Preconditions</div>", unsafe_allow_html=True)
     sc1, sc2 = st.columns(2)
     with sc1:
         hypertension = st.radio("Hypertension", ["No", "Yes"], horizontal=True)
     with sc2:
         heart_disease = st.radio("Heart Disease", ["No", "Yes"], horizontal=True)
 
-    st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
     analyze_btn = st.button("⚡ ANALYZE PATIENT RISK", type="primary", use_container_width=True)
 
 # Build feature dictionary aligned with the model's expected 15 inputs
@@ -180,11 +191,11 @@ if analyze_btn and model is not None:
     st.session_state.raw_prob = raw_prob
 
 # --- TOP HEADER ---
-st.markdown("<div style='background: rgba(4, 18, 28, 0.75); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 10px; padding: 8px 16px; text-align: center; margin-bottom: 12px;'><span style='font-family: JetBrains Mono; font-size: 1.25rem; font-weight: 800; color: #00f0ff; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,240,255,0.4);'>🧬 DIABETES RISK LAB // DECISION TREE ENGINE</span><br><span style='font-family: JetBrains Mono; font-size: 0.75rem; color: #648ba6;'>AI-Assisted Diagnostic Telemetry & Clinical Feature Importance</span></div>", unsafe_allow_html=True)
+st.markdown("<div style='background: rgba(4, 18, 28, 0.75); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px; padding: 6px 14px; text-align: center; margin-bottom: 8px;'><span style='font-family: JetBrains Mono; font-size: 1.15rem; font-weight: 800; color: #00f0ff; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,240,255,0.4);'>🧬 DIABETES RISK LAB // DECISION TREE ENGINE</span><br><span style='font-family: JetBrains Mono; font-size: 0.7rem; color: #648ba6;'>AI-Assisted Diagnostic Telemetry & Clinical Feature Importance</span></div>", unsafe_allow_html=True)
 
-col_panel, col_diag = st.columns([1.15, 1], gap="medium")
+col_panel, col_diag = st.columns([1.15, 1], gap="small")
 
-# --- COLUMN 1: Live Patient Biomarkers (Glowing Telemetry Plot) ---
+# --- COLUMN 1: Live Patient Biomarkers ---
 with col_panel:
     with st.container(border=True):
         st.markdown("<div class='hud-title'>🧪 Patient Telemetry</div>", unsafe_allow_html=True)
@@ -208,7 +219,6 @@ with col_panel:
 
         fig_telemetry = go.Figure()
         
-        # Track background
         fig_telemetry.add_trace(go.Bar(
             y=y_labels,
             x=[100] * 4,
@@ -218,7 +228,6 @@ with col_panel:
             showlegend=False
         ))
         
-        # Active illuminated bar
         fig_telemetry.add_trace(go.Bar(
             y=y_labels,
             x=x_vals,
@@ -226,7 +235,7 @@ with col_panel:
             text=display_texts,
             textposition='inside',
             insidetextanchor='start',
-            textfont=dict(family='JetBrains Mono', size=11, color='#040e17'),
+            textfont=dict(family='JetBrains Mono', size=10, color='#040e17'),
             marker=dict(color=bar_colors, line=dict(color='rgba(255, 255, 255, 0.6)', width=1)),
             hoverinfo='none',
             showlegend=False
@@ -234,12 +243,12 @@ with col_panel:
 
         fig_telemetry.update_layout(
             barmode='overlay',
-            height=145,
-            margin=dict(l=10, r=10, t=5, b=5),
+            height=125,
+            margin=dict(l=5, r=5, t=2, b=2),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             xaxis=dict(showgrid=False, visible=False, range=[0, 100]),
-            yaxis=dict(showgrid=False, tickfont=dict(family='JetBrains Mono', color='#00f0ff', size=12))
+            yaxis=dict(showgrid=False, tickfont=dict(family='JetBrains Mono', color='#00f0ff', size=11))
         )
         st.plotly_chart(fig_telemetry, use_container_width=True, config={'displayModeBar': False})
 
@@ -256,7 +265,7 @@ with col_diag:
         st.markdown("<div class='hud-title'>🔬 Diagnostic Evaluation</div>", unsafe_allow_html=True)
         
         if not st.session_state.analyzed:
-            st.info("👈 Adjust parameters in the sidebar and click **ANALYZE PATIENT RISK**.")
+            st.info("👈 Set inputs and click **ANALYZE PATIENT RISK**.")
             gauge_val = 0.0
             gauge_color = '#00f0ff'
             display_text = "READY"
@@ -266,9 +275,9 @@ with col_diag:
             display_text = f"{gauge_val:.1f}%"
             
             if st.session_state.prediction == 1:
-                st.error("⚠️ **HIGH DIABETES RISK** — Clinical profile suggests elevated risk.")
+                st.error("⚠️ **HIGH DIABETES RISK** — Elevated risk profile.")
             else:
-                st.success("✅ **LOW DIABETES RISK** — Indicators are within acceptable limits.")
+                st.success("✅ **LOW DIABETES RISK** — Nominal biomarkers.")
 
         # Plotly Donut Gauge
         fig_gauge = go.Figure(go.Pie(
@@ -282,13 +291,13 @@ with col_diag:
         ))
         fig_gauge.update_layout(
             showlegend=False,
-            height=130,
-            margin=dict(l=0, r=0, t=5, b=5),
+            height=110,
+            margin=dict(l=0, r=0, t=2, b=2),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             annotations=[
                 dict(
-                    text=f"<span style='font-family: JetBrains Mono; font-size: 1.45rem; font-weight: 800; color: {gauge_color};'>{display_text}</span><br><span style='font-size: 0.7rem; color: #7aa5c2;'>Risk Score</span>",
+                    text=f"<span style='font-family: JetBrains Mono; font-size: 1.3rem; font-weight: 800; color: {gauge_color};'>{display_text}</span><br><span style='font-size: 0.65rem; color: #7aa5c2;'>Risk Score</span>",
                     x=0.5, y=0.5,
                     showarrow=False
                 )
@@ -304,7 +313,7 @@ if model is not None and hasattr(model, 'feature_importances_'):
         feat_df = pd.DataFrame({
             'Feature': model.feature_names_in_,
             'Importance': model.feature_importances_
-        }).sort_values(by='Importance', ascending=True).tail(6)
+        }).sort_values(by='Importance', ascending=True).tail(5)
         
         fig_bar = go.Figure(go.Bar(
             x=feat_df['Importance'],
@@ -317,11 +326,11 @@ if model is not None and hasattr(model, 'feature_importances_'):
             )
         ))
         fig_bar.update_layout(
-            height=125,
-            margin=dict(l=10, r=10, t=5, b=5),
+            height=105,
+            margin=dict(l=10, r=10, t=2, b=2),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.06)', tickfont=dict(color='#648ba6', size=10)),
-            yaxis=dict(showgrid=False, tickfont=dict(family='JetBrains Mono', color='#b0d4ec', size=11))
+            xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.06)', tickfont=dict(color='#648ba6', size=9)),
+            yaxis=dict(showgrid=False, tickfont=dict(family='JetBrains Mono', color='#b0d4ec', size=10))
         )
         st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
