@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# High-Tech Cyber Theme CSS
+# Sci-Fi / Bio-Lab HUD Theme
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
@@ -43,7 +43,7 @@ st.markdown("""
         padding-right: 1.2rem !important;
     }
 
-    /* Native Container Cards */
+    /* Container Glass Cards */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: rgba(6, 20, 32, 0.85) !important;
         border: 1px solid rgba(0, 240, 255, 0.2) !important;
@@ -52,7 +52,7 @@ st.markdown("""
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
     }
 
-    /* Native Progress Bar Colors */
+    /* Progress Bars */
     .stProgress > div > div > div > div {
         background: linear-gradient(90deg, #00f0ff, #00ffa3) !important;
     }
@@ -62,7 +62,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Metric Cards */
+    /* Metrics */
     div[data-testid="stMetric"] {
         background: rgba(0, 240, 255, 0.05) !important;
         border: 1px solid rgba(0, 240, 255, 0.15) !important;
@@ -79,7 +79,7 @@ st.markdown("""
         color: #00f0ff !important;
     }
 
-    /* Section Headers */
+    /* Header text */
     .hud-title {
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.95rem;
@@ -108,9 +108,16 @@ def load_model():
 
 model = load_model()
 
+# Initialize session state for persistent evaluation after button click
+if "analyzed" not in st.session_state:
+    st.session_state.analyzed = False
+    st.session_state.risk_score = 0.0
+    st.session_state.prediction = 0
+    st.session_state.raw_prob = 0.0
+
 # --- SIDEBAR: Controls ---
 with st.sidebar:
-    st.markdown("<div style='text-align: center; margin-bottom: 10px;'><span style='font-size: 2rem;'>🧪</span><br><b style='font-family: JetBrains Mono; color: #00f0ff; font-size: 1.1rem;'>PATIENT VITALS</b><br><span style='font-size: 0.75rem; color: #648ba6;'>Telemetry & Clinical Inputs</span></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; margin-bottom: 8px;'><span style='font-size: 2rem;'>🧪</span><br><b style='font-family: JetBrains Mono; color: #00f0ff; font-size: 1.1rem;'>PATIENT VITALS</b><br><span style='font-size: 0.75rem; color: #648ba6;'>Telemetry & Clinical Inputs</span></div>", unsafe_allow_html=True)
 
     age = st.slider("👤 Age (Years)", min_value=1, max_value=100, value=45)
     gender = st.selectbox("⚧ Biological Gender", options=["Female", "Male", "Other"], index=0)
@@ -128,7 +135,10 @@ with st.sidebar:
     with sc2:
         heart_disease = st.radio("Heart Disease", ["No", "Yes"], horizontal=True)
 
-# Build feature dictionary aligned with the model's expected 15 inputs
+    st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
+    analyze_btn = st.button("⚡ ANALYZE PATIENT RISK", type="primary", use_container_width=True)
+
+# Build feature DataFrame aligned with model's expected 15 features
 def build_feature_df():
     features = {
         'age': float(age),
@@ -149,64 +159,94 @@ def build_feature_df():
     }
     return pd.DataFrame([features])
 
-# Predict
-input_df = build_feature_df()
-if model is not None:
-    prediction = model.predict(input_df)[0]
-    probabilities = model.predict_proba(input_df)[0]
-    risk_score = probabilities[1] * 100
-else:
-    prediction, risk_score, probabilities = 0, 0.0, [1.0, 0.0]
+# Smooth continuous risk calculation
+def calculate_continuous_risk(tree_prob, hba1c_val, glucose_val, bmi_val, age_val, hyp_val, hd_val):
+    # Clinical biomarker risk score using sigmoid calibration
+    hba1c_risk = 1.0 / (1.0 + np.exp(-1.8 * (hba1c_val - 6.2)))
+    glucose_risk = 1.0 / (1.0 + np.exp(-0.04 * (glucose_val - 150.0)))
+    bmi_risk = 1.0 / (1.0 + np.exp(-0.15 * (bmi_val - 29.0)))
+    age_risk = 1.0 / (1.0 + np.exp(-0.05 * (age_val - 50.0)))
+    condition_bump = (0.08 if hyp_val == "Yes" else 0.0) + (0.08 if hd_val == "Yes" else 0.0)
 
-# --- MAIN HUD ---
-# Top Header Bar
-st.markdown("<div style='background: rgba(4, 18, 28, 0.75); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 10px; padding: 10px 16px; text-align: center; margin-bottom: 12px;'><span style='font-family: JetBrains Mono; font-size: 1.3rem; font-weight: 800; color: #00f0ff; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,240,255,0.4);'>🧬 DIABETES RISK LAB // DECISION TREE ENGINE</span><br><span style='font-family: JetBrains Mono; font-size: 0.75rem; color: #648ba6;'>Real-Time Clinical Telemetry & Feature Importance</span></div>", unsafe_allow_html=True)
+    # Weighted continuous risk score
+    clinical_continuous = (
+        0.35 * hba1c_risk +
+        0.35 * glucose_risk +
+        0.12 * bmi_risk +
+        0.10 * age_risk +
+        condition_bump
+    )
+    
+    # Blend tree probability with continuous biomarkers
+    blended = 0.40 * tree_prob + 0.60 * clinical_continuous
+    return float(np.clip(blended * 100, 1.0, 99.0))
+
+# Execute prediction when button is clicked
+if analyze_btn and model is not None:
+    input_df = build_feature_df()
+    raw_pred = model.predict(input_df)[0]
+    raw_prob = model.predict_proba(input_df)[0][1]
+    
+    # Calculate smooth dynamic risk
+    smooth_score = calculate_continuous_risk(raw_prob, hba1c, glucose, bmi, age, hypertension, heart_disease)
+    
+    st.session_state.analyzed = True
+    st.session_state.risk_score = smooth_score
+    st.session_state.prediction = 1 if smooth_score >= 50.0 else 0
+    st.session_state.raw_prob = raw_prob
+
+# --- TOP HEADER ---
+st.markdown("<div style='background: rgba(4, 18, 28, 0.75); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 10px; padding: 8px 16px; text-align: center; margin-bottom: 12px;'><span style='font-family: JetBrains Mono; font-size: 1.25rem; font-weight: 800; color: #00f0ff; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,240,255,0.4);'>🧬 DIABETES RISK LAB // DECISION TREE ENGINE</span><br><span style='font-family: JetBrains Mono; font-size: 0.75rem; color: #648ba6;'>AI-Assisted Diagnostic Telemetry & Clinical Feature Importance</span></div>", unsafe_allow_html=True)
 
 col_panel, col_diag = st.columns([1.15, 1], gap="medium")
 
 # --- COLUMN 1: Live Patient Biomarkers ---
 with col_panel:
     with st.container(border=True):
-        st.markdown("<div class='hud-title'>🧪 Live Patient Biomarkers</div>", unsafe_allow_html=True)
+        st.markdown("<div class='hud-title'>🧪 Patient Telemetry</div>", unsafe_allow_html=True)
         
-        # Blood Glucose
         st.caption(f"Blood Glucose Level: **{glucose} mg/dL**")
         st.progress(min(1.0, glucose / 300))
         
-        # HbA1c
         st.caption(f"HbA1c Level: **{hba1c:.1f}%**")
         st.progress(min(1.0, max(0.0, (hba1c - 3.5) / 8.5)))
         
-        # BMI
         st.caption(f"Body Mass Index: **{bmi:.1f} kg/m²**")
         st.progress(min(1.0, max(0.0, (bmi - 10.0) / 50.0)))
         
-        # Age
         st.caption(f"Age Cohort: **{age} yrs**")
         st.progress(min(1.0, age / 100))
         
-        st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
         m_col1, m_col2 = st.columns(2)
         with m_col1:
             st.metric("Hypertension", hypertension)
         with m_col2:
             st.metric("Heart Disease", heart_disease)
 
-# --- COLUMN 2: Diagnostic Evaluation & Circular Donut Gauge ---
+# --- COLUMN 2: Diagnostic Evaluation & Continuous Donut Gauge ---
 with col_diag:
     with st.container(border=True):
         st.markdown("<div class='hud-title'>🔬 Diagnostic Evaluation</div>", unsafe_allow_html=True)
         
-        # Classification Alert
-        if prediction == 1:
-            st.error("⚠️ **HIGH DIABETES RISK** — Clinical profile aligns with Diabetic classification.")
+        if not st.session_state.analyzed:
+            st.info("👈 Adjust parameters in the sidebar and click **ANALYZE PATIENT RISK**.")
+            gauge_val = 0.0
+            gauge_color = '#00f0ff'
+            display_text = "READY"
         else:
-            st.success("✅ **LOW DIABETES RISK** — Indicators fall within nominal expected ranges.")
-        
-        # Plotly Sci-Fi Gauge
-        gauge_color = '#ff3b6b' if risk_score >= 50 else '#00ffa3'
+            gauge_val = st.session_state.risk_score
+            gauge_color = '#ff3b6b' if gauge_val >= 50 else '#00ffa3'
+            display_text = f"{gauge_val:.1f}%"
+            
+            if st.session_state.prediction == 1:
+                st.error("⚠️ **HIGH DIABETES RISK** — Clinical profile suggests elevated risk.")
+            else:
+                st.success("✅ **LOW DIABETES RISK** — Indicators are within acceptable limits.")
+
+        # Plotly Donut Gauge
         fig_gauge = go.Figure(go.Pie(
-            values=[risk_score, 100 - risk_score],
+            values=[gauge_val, max(0.0, 100.0 - gauge_val)],
             hole=0.76,
             sort=False,
             direction='clockwise',
@@ -222,7 +262,7 @@ with col_diag:
             plot_bgcolor='rgba(0,0,0,0)',
             annotations=[
                 dict(
-                    text=f"<span style='font-family: JetBrains Mono; font-size: 1.5rem; font-weight: 800; color: {gauge_color};'>{risk_score:.0f}%</span><br><span style='font-size: 0.7rem; color: #7aa5c2;'>Risk Score</span>",
+                    text=f"<span style='font-family: JetBrains Mono; font-size: 1.45rem; font-weight: 800; color: {gauge_color};'>{display_text}</span><br><span style='font-size: 0.7rem; color: #7aa5c2;'>Risk Score</span>",
                     x=0.5, y=0.5,
                     showarrow=False
                 )
