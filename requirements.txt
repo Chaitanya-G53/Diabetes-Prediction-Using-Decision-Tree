@@ -1,6 +1,6 @@
 streamlit 
-flask 
 scikit-learn 
 numpy 
 pandas 
 plotly 
+flask 
