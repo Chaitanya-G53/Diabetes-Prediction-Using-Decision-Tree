@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Sci-Fi / Bio-Lab HUD Theme
+# Custom Cyberpunk / Bio-Lab HUD Theme CSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
@@ -52,17 +52,7 @@ st.markdown("""
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
     }
 
-    /* Progress Bars */
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #00f0ff, #00ffa3) !important;
-    }
-    .stProgress > div > div > div {
-        background-color: rgba(14, 38, 56, 0.8) !important;
-        height: 8px !important;
-        border-radius: 8px !important;
-    }
-
-    /* Metrics */
+    /* Metric Cards */
     div[data-testid="stMetric"] {
         background: rgba(0, 240, 255, 0.05) !important;
         border: 1px solid rgba(0, 240, 255, 0.15) !important;
@@ -138,7 +128,7 @@ with st.sidebar:
     st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
     analyze_btn = st.button("⚡ ANALYZE PATIENT RISK", type="primary", use_container_width=True)
 
-# Build feature DataFrame aligned with model's expected 15 features
+# Build feature dictionary aligned with the model's expected 15 inputs
 def build_feature_df():
     features = {
         'age': float(age),
@@ -161,14 +151,12 @@ def build_feature_df():
 
 # Smooth continuous risk calculation
 def calculate_continuous_risk(tree_prob, hba1c_val, glucose_val, bmi_val, age_val, hyp_val, hd_val):
-    # Clinical biomarker risk score using sigmoid calibration
     hba1c_risk = 1.0 / (1.0 + np.exp(-1.8 * (hba1c_val - 6.2)))
     glucose_risk = 1.0 / (1.0 + np.exp(-0.04 * (glucose_val - 150.0)))
     bmi_risk = 1.0 / (1.0 + np.exp(-0.15 * (bmi_val - 29.0)))
     age_risk = 1.0 / (1.0 + np.exp(-0.05 * (age_val - 50.0)))
     condition_bump = (0.08 if hyp_val == "Yes" else 0.0) + (0.08 if hd_val == "Yes" else 0.0)
 
-    # Weighted continuous risk score
     clinical_continuous = (
         0.35 * hba1c_risk +
         0.35 * glucose_risk +
@@ -176,8 +164,6 @@ def calculate_continuous_risk(tree_prob, hba1c_val, glucose_val, bmi_val, age_va
         0.10 * age_risk +
         condition_bump
     )
-    
-    # Blend tree probability with continuous biomarkers
     blended = 0.40 * tree_prob + 0.60 * clinical_continuous
     return float(np.clip(blended * 100, 1.0, 99.0))
 
@@ -186,8 +172,6 @@ if analyze_btn and model is not None:
     input_df = build_feature_df()
     raw_pred = model.predict(input_df)[0]
     raw_prob = model.predict_proba(input_df)[0][1]
-    
-    # Calculate smooth dynamic risk
     smooth_score = calculate_continuous_risk(raw_prob, hba1c, glucose, bmi, age, hypertension, heart_disease)
     
     st.session_state.analyzed = True
@@ -200,24 +184,66 @@ st.markdown("<div style='background: rgba(4, 18, 28, 0.75); border: 1px solid rg
 
 col_panel, col_diag = st.columns([1.15, 1], gap="medium")
 
-# --- COLUMN 1: Live Patient Biomarkers ---
+# --- COLUMN 1: Live Patient Biomarkers (Glowing Telemetry Plot) ---
 with col_panel:
     with st.container(border=True):
         st.markdown("<div class='hud-title'>🧪 Patient Telemetry</div>", unsafe_allow_html=True)
         
-        st.caption(f"Blood Glucose Level: **{glucose} mg/dL**")
-        st.progress(min(1.0, glucose / 300))
+        glucose_color = "#ff3b6b" if glucose >= 140 else ("#ffb800" if glucose >= 100 else "#00ffa3")
+        hba1c_color = "#ff3b6b" if hba1c >= 6.5 else ("#ffb800" if hba1c >= 5.7 else "#00ffa3")
+        bmi_color = "#ff3b6b" if bmi >= 30.0 else ("#ffb800" if bmi >= 25.0 else "#00ffa3")
+        age_color = "#ffb800" if age >= 60 else "#00f0ff"
+
+        bar_metrics = [
+            {"name": "Age", "display": f"{age} yrs", "val": min(100, age), "color": age_color},
+            {"name": "BMI", "display": f"{bmi:.1f} kg/m²", "val": min(100, int((bmi / 50) * 100)), "color": bmi_color},
+            {"name": "HbA1c", "display": f"{hba1c:.1f}%", "val": min(100, int((hba1c / 12) * 100)), "color": hba1c_color},
+            {"name": "Glucose", "display": f"{glucose} mg/dL", "val": min(100, int((glucose / 300) * 100)), "color": glucose_color},
+        ]
         
-        st.caption(f"HbA1c Level: **{hba1c:.1f}%**")
-        st.progress(min(1.0, max(0.0, (hba1c - 3.5) / 8.5)))
+        y_labels = [m["name"] for m in bar_metrics]
+        x_vals = [m["val"] for m in bar_metrics]
+        display_texts = [f"<b>{m['display']}</b>  " for m in bar_metrics]
+        bar_colors = [m["color"] for m in bar_metrics]
+
+        fig_telemetry = go.Figure()
         
-        st.caption(f"Body Mass Index: **{bmi:.1f} kg/m²**")
-        st.progress(min(1.0, max(0.0, (bmi - 10.0) / 50.0)))
+        # Track background
+        fig_telemetry.add_trace(go.Bar(
+            y=y_labels,
+            x=[100] * 4,
+            orientation='h',
+            marker=dict(color='rgba(14, 38, 56, 0.7)', line=dict(color='rgba(0, 240, 255, 0.15)', width=1)),
+            hoverinfo='none',
+            showlegend=False
+        ))
         
-        st.caption(f"Age Cohort: **{age} yrs**")
-        st.progress(min(1.0, age / 100))
-        
-        st.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
+        # Active illuminated bar
+        fig_telemetry.add_trace(go.Bar(
+            y=y_labels,
+            x=x_vals,
+            orientation='h',
+            text=display_texts,
+            textposition='inside',
+            insidetextanchor='start',
+            textfont=dict(family='JetBrains Mono', size=11, color='#040e17'),
+            marker=dict(color=bar_colors, line=dict(color='rgba(255, 255, 255, 0.6)', width=1)),
+            hoverinfo='none',
+            showlegend=False
+        ))
+
+        fig_telemetry.update_layout(
+            barmode='overlay',
+            height=145,
+            margin=dict(l=10, r=10, t=5, b=5),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, visible=False, range=[0, 100]),
+            yaxis=dict(showgrid=False, tickfont=dict(family='JetBrains Mono', color='#00f0ff', size=12))
+        )
+        st.plotly_chart(fig_telemetry, use_container_width=True, config={'displayModeBar': False})
+
+        st.markdown("<div style='margin-top: -6px;'></div>", unsafe_allow_html=True)
         m_col1, m_col2 = st.columns(2)
         with m_col1:
             st.metric("Hypertension", hypertension)
